@@ -29,6 +29,7 @@ type Client interface {
 	Patch(targetURL string, opts SendOptions, body []byte) (*Response, error)
 	Delete(targetURL string, opts SendOptions, body []byte) (*Response, error)
 	Send(method, path string, opts SendOptions, body []byte) (*Response, error)
+	GetStandardClient() *http.Client
 }
 
 // SendOptions for attached data through a request
@@ -218,4 +219,9 @@ func (c client) Send(method, targetURL string, opts SendOptions, body []byte) (*
 	}
 
 	return response, nil
+}
+
+// Get http standard client
+func (c client) GetStandardClient() *http.Client {
+	return c.HTTPClient
 }
