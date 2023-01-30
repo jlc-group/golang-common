@@ -218,38 +218,47 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 		}
 
 		if sv.Kind() == reflect.Slice || sv.Kind() == reflect.Array {
-			var del string
-			if opts.Contains("comma") {
-				del = ","
-			} else if opts.Contains("space") {
-				del = " "
-			} else if opts.Contains("semicolon") {
-				del = ";"
-			} else if opts.Contains("brackets") {
-				name = name + "[]"
-			} else {
-				del = sf.Tag.Get("del")
-			}
-
-			if del != "" {
-				s := new(bytes.Buffer)
-				first := true
-				for i := 0; i < sv.Len(); i++ {
-					if first {
-						first = false
-					} else {
-						s.WriteString(del)
-					}
-					s.WriteString(valueString(sv.Index(i), opts, sf))
+			if opts.Contains("json") {
+				var b []byte
+				b, err := json.Marshal(sv.Interface())
+				if err != nil {
+					return err
 				}
-				values.Add(name, s.String())
+				values.Add(name, valueString(reflect.ValueOf(string(b)), opts, sf))
 			} else {
-				for i := 0; i < sv.Len(); i++ {
-					k := name
-					if opts.Contains("numbered") {
-						k = fmt.Sprintf("%s%d", name, i)
+				var del string
+				if opts.Contains("comma") {
+					del = ","
+				} else if opts.Contains("space") {
+					del = " "
+				} else if opts.Contains("semicolon") {
+					del = ";"
+				} else if opts.Contains("brackets") {
+					name = name + "[]"
+				} else {
+					del = sf.Tag.Get("del")
+				}
+
+				if del != "" {
+					s := new(bytes.Buffer)
+					first := true
+					for i := 0; i < sv.Len(); i++ {
+						if first {
+							first = false
+						} else {
+							s.WriteString(del)
+						}
+						s.WriteString(valueString(sv.Index(i), opts, sf))
 					}
-					values.Add(k, valueString(sv.Index(i), opts, sf))
+					values.Add(name, s.String())
+				} else {
+					for i := 0; i < sv.Len(); i++ {
+						k := name
+						if opts.Contains("numbered") {
+							k = fmt.Sprintf("%s%d", name, i)
+						}
+						values.Add(k, valueString(sv.Index(i), opts, sf))
+					}
 				}
 			}
 			continue
