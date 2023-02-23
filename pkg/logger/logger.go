@@ -1,11 +1,14 @@
 package logger
 
 import (
+	"fmt"
+	"io"
 	"os"
-
-	"github.com/sirupsen/logrus"
+	"runtime"
+	"time"
 
 	"github.com/jlc-group/golang-common/pkg/logger/hooks"
+	"github.com/sirupsen/logrus"
 )
 
 // TimeStampFormat config time format
@@ -19,13 +22,35 @@ type Entry struct {
 	*logrus.Entry
 }
 
-var logger = logrus.New()
+var (
+	logger                          = logrus.New()
+	mw                    io.Writer = nil
+	logStdOut             io.Writer = nil
+	logToStdout           bool      = true
+	logPath               string    = "log"
+	logFileNamePrefix     string    = "log"
+	logFileNameDateSuffix bool      = true
+	logFile               *os.File  = nil
+	lastLogTime           time.Time
+	lastLogFileOpenTime   time.Time
+	logfileCloseTimeout   int = 10 // in second
+)
 
 func init() {
+	switch runtime.GOOS {
+	case "darwin":
+		logStdOut = os.Stdout
+	case "windows":
+		logStdOut = os.Stdout
+		// logStdOut = ansicolor.NewAnsiColorWriter(os.Stdout)
+	default:
+		logStdOut = os.Stdout
+	}
+
 	if os.Getenv("APP_ENV") != "production" || os.Getenv("APP_ENV") == "" {
 		logger.SetFormatter(&logrus.TextFormatter{
 			ForceColors:               true,
-			EnvironmentOverrideColors: true,
+			EnvironmentOverrideColors: false,
 			DisableColors:             false,
 			TimestampFormat:           TimeStampFormat,
 			FullTimestamp:             true,
@@ -36,6 +61,7 @@ func init() {
 
 		level := getEnv("LOG_LEVEL", "debug")
 		SetLevel(level)
+		// hooks.UseTimestamp(logger)
 	} else {
 		logger.SetFormatter(&logrus.JSONFormatter{
 			DisableTimestamp: true,
@@ -47,12 +73,61 @@ func init() {
 
 		level := getEnv("LOG_LEVEL", "info")
 		SetLevel(level)
-		logger.SetOutput(os.Stdout)
+		// logger.SetOutput(os.Stdout)
 		hooks.UseTimestamp(logger)
 	}
 }
 func GetLogger() *logrus.Logger {
 	return logger
+}
+
+// SetOutputToFile
+// out to file
+func SetOutputToFile(path, filenamePrefix string, useDateSuffix bool) {
+	logToStdout = false
+
+	logPath = path
+	logFileNamePrefix = filenamePrefix
+	logFileNameDateSuffix = useDateSuffix
+
+	// upload path
+	err := os.MkdirAll(logPath, 0755)
+	if err != nil {
+		fmt.Printf("Logger Create log Path %s\r\n", err.Error())
+	}
+	// go routine close file timer
+	if !isLogfileOpen() {
+		logFileOpen()
+		// go logFileCloseTimer()
+	}
+}
+
+// SetOutputToStdOut
+// out to os.StdOut
+func SetOutputToStdOut() {
+	logToStdout = true
+	logger.SetOutput(os.Stdout)
+}
+
+// SetOutputToMW , Multi Writer
+// out to os.StdOut and File
+func SetOutputToMW(path, filenamePrefix string, useDateSuffix bool) {
+	logToStdout = true
+
+	logPath = path
+	logFileNamePrefix = filenamePrefix
+	logFileNameDateSuffix = useDateSuffix
+
+	// upload path
+	err := os.MkdirAll(logPath, 0755)
+	if err != nil {
+		fmt.Printf("Logger Create log Path %s\r\n", err.Error())
+	}
+	// go routine close file timer
+	if !isLogfileOpen() {
+		logFileOpen()
+		// go logFileCloseTimer()
+	}
 }
 
 // AddFields appends fields to the log entry using custom logger.Fields
