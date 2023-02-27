@@ -65,7 +65,8 @@ func WithRetryMax(retryMax int) OptionClient {
 type OptionClient func(*retryablehttp.Client)
 
 type client struct {
-	HTTPClient *http.Client
+	debugEnable bool
+	HTTPClient  *http.Client
 }
 
 // Response struct
@@ -76,7 +77,7 @@ type Response struct {
 }
 
 // NewClient init http client
-func NewClient(optsClient ...OptionClient) Client {
+func NewClient(debugEnable bool, optsClient ...OptionClient) Client {
 	httpClient := retryablehttp.NewClient()
 	for _, optClient := range optsClient {
 		optClient(httpClient)
@@ -87,18 +88,21 @@ func NewClient(optsClient ...OptionClient) Client {
 	}
 	httpClient.HTTPClient.Transport = tr
 	httpClient.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
-	httpClient.RequestLogHook = func(_ retryablehttp.Logger, req *http.Request, attempt int) {
-		logger.WithFields(logger.Fields{
-			"request": map[string]string{
-				"proto": req.Proto,
-				"host":  req.URL.Host,
-				"path":  req.URL.Path,
-			},
-			"attempt": attempt,
-		}).Debug("Sending request")
+	if debugEnable {
+		httpClient.RequestLogHook = func(_ retryablehttp.Logger, req *http.Request, attempt int) {
+			logger.WithFields(logger.Fields{
+				"request": map[string]string{
+					"proto": req.Proto,
+					"host":  req.URL.Host,
+					"path":  req.URL.Path,
+				},
+				"attempt": attempt,
+			}).Debug("Sending request")
+		}
 	}
 	return &client{
-		HTTPClient: httpClient.StandardClient(),
+		debugEnable: debugEnable,
+		HTTPClient:  httpClient.StandardClient(),
 	}
 }
 
@@ -154,13 +158,14 @@ func (c client) Delete(targetURL string, opts SendOptions, body []byte) (*Respon
 
 // Send a request and returns response from target URL
 func (c client) Send(method, targetURL string, opts SendOptions, body []byte) (*Response, error) {
-	logger.WithFields(logger.Fields{
-		"method": method,
-		"url":    targetURL,
-		"opts":   opts,
-		"body":   string(body),
-	}).Debug("[Send]: http request")
-
+	if c.debugEnable {
+		logger.WithFields(logger.Fields{
+			"method": method,
+			"url":    targetURL,
+			"opts":   opts,
+			"body":   string(body),
+		}).Debug("[Send]: http request")
+	}
 	method = strings.ToUpper(method)
 	urlSchema, err := url.Parse(targetURL)
 	if err != nil {
@@ -193,8 +198,9 @@ func (c client) Send(method, targetURL string, opts SendOptions, body []byte) (*
 			req.Header.Set(key, val.(string))
 		}
 	}
-
-	logger.Debugf("request %+v", req)
+	if c.debugEnable {
+		logger.Debugf("request %+v", req)
+	}
 
 	netResponse, err := c.HTTPClient.Do(req)
 	if err != nil {
