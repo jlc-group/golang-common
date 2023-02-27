@@ -77,7 +77,12 @@ type Response struct {
 }
 
 // NewClient init http client
-func NewClient(debugEnable bool, optsClient ...OptionClient) Client {
+func NewClient(optsClient ...OptionClient) Client {
+	return NewClientWithDebug(false, optsClient...)
+}
+
+// NewClientWithDebug init http client with debug config
+func NewClientWithDebug(debugEnable bool, optsClient ...OptionClient) Client {
 	httpClient := retryablehttp.NewClient()
 	for _, optClient := range optsClient {
 		optClient(httpClient)
