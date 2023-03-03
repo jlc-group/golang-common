@@ -95,6 +95,16 @@ func NewClientWithDebug(debugEnable bool, optsClient ...OptionClient) Client {
 	httpClient.HTTPClient.Transport = tr
 	httpClient.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
 	if debugEnable {
+		clientlogger.SetFormatter(&logrus.TextFormatter{
+			ForceColors:               true,
+			EnvironmentOverrideColors: false,
+			DisableColors:             false,
+			TimestampFormat:           "2006-01-02 15:04:05.000",
+			FullTimestamp:             true,
+			FieldMap: logrus.FieldMap{
+				logrus.FieldKeyLevel: "log_level",
+			},
+		})
 		clientlogger.SetLevel(logrus.DebugLevel)
 		httpClient.RequestLogHook = func(_ retryablehttp.Logger, req *http.Request, attempt int) {
 			clientlogger.WithFields(logrus.Fields{
