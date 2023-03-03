@@ -94,6 +94,7 @@ func NewClientWithDebug(debugEnable bool, optsClient ...OptionClient) Client {
 	httpClient.HTTPClient.Transport = tr
 	httpClient.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
 	if debugEnable {
+		logger.SetLevel("debug")
 		httpClient.RequestLogHook = func(_ retryablehttp.Logger, req *http.Request, attempt int) {
 			logger.WithFields(logger.Fields{
 				"request": map[string]string{
