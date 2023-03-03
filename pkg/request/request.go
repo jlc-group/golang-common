@@ -12,8 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
-
-	"github.com/jlc-group/golang-common/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -66,6 +65,7 @@ type OptionClient func(*retryablehttp.Client)
 
 type client struct {
 	debugEnable bool
+	logger      *logrus.Logger
 	HTTPClient  *http.Client
 }
 
@@ -83,6 +83,7 @@ func NewClient(optsClient ...OptionClient) Client {
 
 // NewClientWithDebug init http client with debug config
 func NewClientWithDebug(debugEnable bool, optsClient ...OptionClient) Client {
+	clientlogger := logrus.New()
 	httpClient := retryablehttp.NewClient()
 	for _, optClient := range optsClient {
 		optClient(httpClient)
@@ -94,9 +95,9 @@ func NewClientWithDebug(debugEnable bool, optsClient ...OptionClient) Client {
 	httpClient.HTTPClient.Transport = tr
 	httpClient.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
 	if debugEnable {
-		logger.SetLevel("debug")
+		clientlogger.SetLevel(logrus.DebugLevel)
 		httpClient.RequestLogHook = func(_ retryablehttp.Logger, req *http.Request, attempt int) {
-			logger.WithFields(logger.Fields{
+			clientlogger.WithFields(logrus.Fields{
 				"request": map[string]string{
 					"proto": req.Proto,
 					"host":  req.URL.Host,
@@ -108,6 +109,7 @@ func NewClientWithDebug(debugEnable bool, optsClient ...OptionClient) Client {
 	}
 	return &client{
 		debugEnable: debugEnable,
+		logger:      clientlogger,
 		HTTPClient:  httpClient.StandardClient(),
 	}
 }
@@ -165,7 +167,7 @@ func (c client) Delete(targetURL string, opts SendOptions, body []byte) (*Respon
 // Send a request and returns response from target URL
 func (c client) Send(method, targetURL string, opts SendOptions, body []byte) (*Response, error) {
 	if c.debugEnable {
-		logger.WithFields(logger.Fields{
+		c.logger.WithFields(logrus.Fields{
 			"method": method,
 			"url":    targetURL,
 			"opts":   opts,
@@ -205,7 +207,7 @@ func (c client) Send(method, targetURL string, opts SendOptions, body []byte) (*
 		}
 	}
 	if c.debugEnable {
-		logger.Debugf("request %+v", req)
+		c.logger.Debugf("request %+v", req)
 	}
 
 	netResponse, err := c.HTTPClient.Do(req)
@@ -216,7 +218,7 @@ func (c client) Send(method, targetURL string, opts SendOptions, body []byte) (*
 	contents, err := ioutil.ReadAll(netResponse.Body)
 	defer func() {
 		if err := netResponse.Body.Close(); err != nil {
-			logger.WithError(err).Error("[Client.Send]: unable to close a response body")
+			c.logger.WithError(err).Error("[Client.Send]: unable to close a response body")
 		}
 	}()
 
