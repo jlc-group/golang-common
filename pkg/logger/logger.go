@@ -68,7 +68,7 @@ func init() {
 			FieldMap: logrus.FieldMap{
 				logrus.FieldKeyLevel: "log_level",
 			},
-			PrettyPrint: true,
+			PrettyPrint: false,
 		})
 
 		level := getEnv("LOG_LEVEL", "info")

@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/hashicorp/go-retryablehttp v0.7.1
-	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 	github.com/sirupsen/logrus v1.9.0
 )
 
