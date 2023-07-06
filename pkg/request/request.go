@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -93,7 +92,7 @@ func NewClientWithDebug(debugEnable bool, optsClient ...OptionClient) Client {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	httpClient.HTTPClient.Transport = tr
-	httpClient.Logger = log.New(ioutil.Discard, "", log.LstdFlags)
+	httpClient.Logger = log.New(io.Discard, "", log.LstdFlags)
 	if debugEnable {
 		clientlogger.SetFormatter(&logrus.TextFormatter{
 			ForceColors:               true,
@@ -225,7 +224,7 @@ func (c client) Send(method, targetURL string, opts SendOptions, body []byte) (*
 		return nil, err
 	}
 
-	contents, err := ioutil.ReadAll(netResponse.Body)
+	contents, err := io.ReadAll(netResponse.Body)
 	defer func() {
 		if err := netResponse.Body.Close(); err != nil {
 			c.logger.WithError(err).Error("[Client.Send]: unable to close a response body")
